@@ -15,5 +15,10 @@
   "devDependencies": {
     "nodemon": "^3.1.4",
     "prettier": "^3.3.2"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.4.5"
   }
 }
