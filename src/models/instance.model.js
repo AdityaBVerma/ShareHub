@@ -7,6 +7,16 @@ const instanceSchema = new Schema({
         type: String,
         required: true
     },
+    thumbnail: {
+        url:{
+            type:String,
+            required: true
+        },
+        public_id:{
+            type:String,
+            required: true
+        }
+    },
     password: {
         type: String,
         required: true,
@@ -29,7 +39,12 @@ const instanceSchema = new Schema({
             type: Schema.Types.ObjectId,
             ref: "Comment"
         }
-    ]
+    ],
+    isPrivate: {
+        type: Number,
+        enum: [1,2],
+        required: true,
+    }
 }, {timestamps: true});
 
 instanceSchema.pre("save", async function(next) {
