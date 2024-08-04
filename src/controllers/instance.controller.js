@@ -10,10 +10,13 @@ const updateInstance = asyncHandler( async (req, res) => {})
 
 const deleteInstance = asyncHandler( async (req, res) => {})
 
+const toggleVisibilityStatus = asyncHandler(async (req, res) => {})
+
 export {
     getAllInstances,
     createNewInstance,
     getInstanceById,
     updateInstance,
-    deleteInstance
+    deleteInstance,
+    toggleVisibilityStatus
 }
