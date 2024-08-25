@@ -2,7 +2,7 @@ import asyncHandler from "../utils/asyncHandler.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.model.js"
-import { uploadOnCloudinary } from "../utils/cloudinary.js"
+import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js"
 import jwt from "jsonwebtoken"
 
 const generateAccessAndRefreshToken = async (userid) =>{
@@ -234,7 +234,43 @@ const updateAccountDetails = asyncHandler( async (req, res) => {
     .json(new ApiResponse(200, updatedUser, "Account details updated successfully"))
 })
 
-const updateUserAvatar = asyncHandler( async (req, res) => {})
+const updateUserAvatar = asyncHandler( async (req, res) => {
+    const avatarLocalPath = req.file?.path
+    if (!avatarLocalPath) {
+        throw new ApiError(404, "avatar image is required")
+    }
+
+    const user = await User.findById(req.user._id)
+    const previousAvatar = user.avatar
+    if (previousAvatar) {
+        await deleteFromCloudinary(previousAvatar.public_id)
+    }
+
+    const newAvatar = await uploadOnCloudinary(avatarLocalPath)
+    if (!newAvatar) {
+        throw new ApiError(400, "Error in uploading avatar")
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set:{
+                avatar: {url: newAvatar.url, public_id: newAvatar.public_id}
+            }
+        },
+        {
+            new: true
+        }
+    ).select("-password")
+
+    if (!updatedUser) {
+        throw new ApiError(400, "could not update the avatar")
+    }
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, updatedUser, "Avatar updated successfully"))
+})
 
 const updateUserCoverImage = asyncHandler( async (req, res) => {})
 
