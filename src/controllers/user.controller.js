@@ -305,7 +305,89 @@ const updateUserCoverImage = asyncHandler( async (req, res) => {
     .json(new ApiResponse(200, updatedUser, "Avatar updated successfully"))
 })
 
-const getUserChannelProfile = asyncHandler( async (req, res) => {})
+const getUserChannelProfile = asyncHandler( async (req, res) => {
+    const username = req.params.username
+    if (username.trim()==="") {
+        throw new ApiError(400, "Invalid username")
+    }
+    const user = await User.aggregate([
+        {
+            $match: {
+                username: username.toLowerCase()
+            }
+        },
+        {
+            $lookup:{
+                from: "instances",
+                localField: "_id",
+                foreignField: "owner",
+                as: "instances"
+            }
+        },
+        {
+            $lookup:{
+                from:"images",
+                localField:"_id",
+                foreignField:"owner",
+                as: "images"
+            }
+        },
+        {
+            $lookup:{
+                from:"videos",
+                localField:"_id",
+                foreignField:"owner",
+                as: "videos"
+            }
+        },
+        {
+            $lookup:{
+                from:"docs",
+                localField:"_id",
+                foreignField:"owner",
+                as: "docs"
+            }
+        },
+        {
+            $addFields:{
+                instanceCount:{
+                    $size: "$instances"
+                },
+                imageCount:{
+                    $size: "$images"
+                },
+                videoCount:{
+                    $size: "$videos"
+                },
+                docCount:{
+                    $size: "$docs"
+                }
+            }
+        },
+        {
+            $project:{
+                fullName: 1,
+                username: 1,
+                email: 1,
+                avatar: 1,
+                coverImage: 1,
+                instanceCount: 1,
+                imageCount: 1,
+                videoCount: 1,
+                docCount: 1
+            }
+        }
+    ])
+
+    if (!user.length) {
+        throw new ApiError(400, "channel does not exist")
+    }
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, user[0], "User profile fetched successfully")
+    )
+})
 
 
 export {
