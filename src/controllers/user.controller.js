@@ -272,7 +272,38 @@ const updateUserAvatar = asyncHandler( async (req, res) => {
     .json(new ApiResponse(200, updatedUser, "Avatar updated successfully"))
 })
 
-const updateUserCoverImage = asyncHandler( async (req, res) => {})
+const updateUserCoverImage = asyncHandler( async (req, res) => {
+    const coverImageLocalPath = req.file?.path
+    if (!coverImageLocalPath) {
+        throw new ApiError(404, "CoverImage not found")
+    }
+    const user = await User.findById(req.user._id)
+    const previousCoverImage = user.coverImage
+    if (previousCoverImage.public_id) {
+        await deleteFromCloudinary(previousCoverImage.public_id)
+    }
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+    if (!coverImage) {
+        throw new ApiError(400, "Error in uploading CoverImage")
+    }
+    const updatedUser = await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set:{
+                coverImage: {url: coverImage.url, public_id: coverImage.public_id}
+            }
+        },
+        {
+            new: true
+        }
+    ).select("-password")
+    if (!updatedUser) {
+        throw new ApiError(400, "could not update the avatar")
+    }
+    return res
+    .status(200)
+    .json(new ApiResponse(200, updatedUser, "Avatar updated successfully"))
+})
 
 const getUserChannelProfile = asyncHandler( async (req, res) => {})
 
