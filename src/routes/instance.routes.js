@@ -7,7 +7,8 @@ import {
     getUserInstances, 
     getInstanceById, 
     toggleVisibilityStatus, 
-    updateInstance 
+    updateInstance,
+    changeInstancePassword 
 } from "../controllers/instance.controller.js";
 
 const router = Router()
@@ -21,6 +22,7 @@ router.route("/user/:userId").get(getUserInstances);
 
 router.route("/:instanceId")
     .get(getInstanceById)
+    .post(changeInstancePassword)
     .patch(upload.single("thubmnail"), updateInstance)
     .delete(deleteInstance)
 

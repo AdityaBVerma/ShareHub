@@ -1,4 +1,5 @@
 import { Instance } from "../models/instance.model.js";
+import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js"
 import asyncHandler from "../utils/asyncHandler.js";
@@ -79,7 +80,36 @@ const createNewInstance = asyncHandler( async (req, res) => {
 
 })
 
-//const changeInstancePassword = asyncHandler( async (req, res) => {})
+const changeInstancePassword = asyncHandler( async (req, res) => {
+    const {oldPassword, newPassword} = req.body
+    const {instanceId} = req.params
+
+    if (!(instanceId && isValidObjectId(instanceId))) {
+        throw new ApiError(400, "Invalid Instance Id")
+    }
+
+    const instance = await Instance.findById(instanceId)
+    if(!instance){
+        throw new ApiError(404, "Instance not found")
+    }
+
+    if (instance.owner.toString()!==req.user._id.toString()) {
+        throw new ApiError(400, "You cannot perform this task")
+    }
+
+    const isPasswordCorrect = await instance.isPasswordCorrect(oldPassword)
+    if (!isPasswordCorrect) {
+        throw new ApiError(400, "invalid old password")
+    }
+
+    instance.password = newPassword
+    await instance.save({validateBeforeSave: false})
+
+    return res
+    .status(200)
+    .json( new ApiResponse(200, {}, "Instance Password changed successfully"))
+
+})
 
 const getInstanceById = asyncHandler( async (req, res) => {})
 
@@ -95,5 +125,6 @@ export {
     getInstanceById,
     updateInstance,
     deleteInstance,
-    toggleVisibilityStatus
+    toggleVisibilityStatus,
+    changeInstancePassword
 }
