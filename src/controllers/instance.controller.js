@@ -2,6 +2,8 @@ import { Instance } from "../models/instance.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js"
 import asyncHandler from "../utils/asyncHandler.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js"
+
 
 const getUserInstances = asyncHandler( async (req, res) => {
     const {userId} = req.params
@@ -43,7 +45,39 @@ const getUserInstances = asyncHandler( async (req, res) => {
     .json( new ApiResponse(200, instances, "instances fetched successfully"))
 })
 
-const createNewInstance = asyncHandler( async (req, res) => {})
+const createNewInstance = asyncHandler( async (req, res) => {
+    const {title, password, description, isPrivate} = req.body
+    const allowedPrivacy = ["public", "private"]
+    if (!allowedPrivacy.includes(isPrivate)) {
+        throw new ApiError(400, "Inctance must be either public or private")
+    }
+    if(!(isPrivate == "private" && password)){
+        throw new ApiError(400, "Password is required")
+    }
+    const thubmnailLocalPath = req.file?.path
+    if (title.trim()==="") {
+        throw new ApiError(400, "Instance title needed")
+    }
+    let thumbnail
+    if (thubmnailLocalPath) {
+        thumbnail = await uploadOnCloudinary(thumbnail)
+    }
+    const instance = await Instance.create({
+        title,
+        password: isPrivate === "private" ? password : undefined, 
+        description,
+        thumbnail: thumbnail ? { url: thumbnail.url, public_id: thumbnail.public_id } : undefined,
+    });
+
+    if(!instance){
+        throw new ApiError(400, "Instance not created")
+    }
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, instance, "Instance created successfully"))
+
+})
 
 //const changeInstancePassword = asyncHandler( async (req, res) => {})
 

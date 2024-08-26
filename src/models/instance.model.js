@@ -19,7 +19,6 @@ const instanceSchema = new Schema({
     },
     password: {
         type: String,
-        required: true,
     },
     description: {
         type: String
@@ -41,8 +40,8 @@ const instanceSchema = new Schema({
         }
     ],
     isPrivate: {
-        type: Number,
-        enum: [1,2],
+        type: String,
+        enum: ['public', 'private'],
         required: true,
     }
 }, {timestamps: true});
