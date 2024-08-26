@@ -1,3 +1,4 @@
+import mongoose, { isValidObjectId } from "mongoose";
 import { Instance } from "../models/instance.model.js";
 import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -111,7 +112,118 @@ const changeInstancePassword = asyncHandler( async (req, res) => {
 
 })
 
-const getInstanceById = asyncHandler( async (req, res) => {})
+const getInstanceById = asyncHandler( async (req, res) => {
+    const {password}  = req.body
+    const {instanceId} = req.params
+    if (!(instanceId && isValidObjectId(instanceId))) {
+        throw new ApiError(400, "Invalid instance Id")
+    }
+    const instance = await Instance.findById(instanceId)
+    if (!instance) {
+        throw new ApiError(400, "Instance not found")
+    }
+    if (instance.isPrivate==="private" && password.trim()==="") {
+        throw new ApiError(400, "Password is required")
+    }
+    if (instance.isPrivate==="private" && password.trim()!=="") {
+        const isPasswordCorrect = await instance.isPasswordCorrect(password)
+        if(!isPasswordCorrect){
+            throw new ApiError(400, "Invalid password")
+        }
+    }
+    const fetchedInstance = await Instance.aggregate([
+        {
+            $match:{
+                _id: new mongoose.Types.ObjectId(instanceId)
+            }
+        },
+        {
+            $lookup:{
+                from: "groups",
+                localField: "groups",
+                foreignField: "_id",
+                as: "groups",
+                pipeline:[
+                    {
+                        $lookup: {
+                            from:"images",
+                            localField:"imagefiles",
+                            foreignField: "_id",
+                            as: "images",
+                            pipeline:[
+                                {
+                                    $project: {
+                                        title: 1
+                                    }
+                                },
+                                {
+                                    $sort: {
+                                        createdAt: -1
+                                    }
+                                },
+                                {
+                                    $limit: 5
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $lookup: {
+                            from:"videos",
+                            localField:"videofiles",
+                            foreignField: "_id",
+                            as: "videos",
+                            pipeline:[
+                                {
+                                    $project: {
+                                        title: 1
+                                    }
+                                },
+                                {
+                                    $sort: {
+                                        createdAt: -1
+                                    }
+                                },
+                                {
+                                    $limit: 5
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $lookup: {
+                            from:"docs",
+                            localField:"docfiles",
+                            foreignField: "_id",
+                            as: "docs",
+                            pipeline:[
+                                {
+                                    $project: {
+                                        title: 1
+                                    }
+                                },
+                                {
+                                    $sort: {
+                                        createdAt: -1
+                                    }
+                                },
+                                {
+                                    $limit: 5
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+    if(!fetchedInstance.length){
+        throw new ApiError(400, "Couldn'nt fetch Instance")
+    }
+    return res
+    .status(200)
+    .json(new ApiResponse(200, fetchedInstance[0], "Instance fetched successfully"))
+})
 
 const updateInstance = asyncHandler( async (req, res) => {})
 
