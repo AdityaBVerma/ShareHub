@@ -4,7 +4,7 @@ import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { 
     createNewInstance, 
     deleteInstance, 
-    getAllInstances, 
+    getUserInstances, 
     getInstanceById, 
     toggleVisibilityStatus, 
     updateInstance 
@@ -15,8 +15,9 @@ const router = Router()
 router.use(verifyJWT)
 
 router.route("/")
-    .get(getAllInstances)
     .post(upload.single("thubmnail"), createNewInstance)
+
+router.route("/user/:userId").get(getUserInstances);
 
 router.route("/:instanceId")
     .get(getInstanceById)
