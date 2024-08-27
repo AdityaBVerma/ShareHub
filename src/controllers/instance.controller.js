@@ -4,7 +4,7 @@ import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js"
 import asyncHandler from "../utils/asyncHandler.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js"
+import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js"
 
 
 const getUserInstances = asyncHandler( async (req, res) => {
@@ -225,7 +225,47 @@ const getInstanceById = asyncHandler( async (req, res) => {
     .json(new ApiResponse(200, fetchedInstance[0], "Instance fetched successfully"))
 })
 
-const updateInstance = asyncHandler( async (req, res) => {})
+const updateInstance = asyncHandler( async (req, res) => {
+    const {title}  = req.body
+    const {instanceId} = req.params
+    if (!(instanceId && isValidObjectId(instanceId))) {
+        throw new ApiError(400, "invalid instance id")
+    }
+    const instance = await Instance.findById(instanceId)
+    if (!instance) {
+        throw new ApiError(400, "instance not found")
+    }
+    if(instance.owner.toString()!==req.user._id.toString()){
+        throw new ApiError(400, "You cannot perform this action")
+    }
+    const thumbnailLocalPath = req.file?.path
+    let thumbnail
+    if (thumbnailLocalPath) {
+        await deleteFromCloudinary(instance.thumbnail.public_id)
+        thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
+    }
+    const updatedInstance = await Instance.findByIdAndUpdate(
+        instanceId,
+        {
+            $set: {
+                title,
+                thumbnail:{url: thumbnail?.url, public_id: thumbnail?.public_id}
+            }
+        },
+        {
+            new: true
+        }
+    ).select("-password")
+
+    if(!updatedInstance){
+        throw new ApiError(400, "could'nt update instance")
+    }
+
+    return res
+    .status(200)
+    .json( new ApiResponse(200, updatedInstance, "Instance updated successfully"))
+
+})
 
 const deleteInstance = asyncHandler( async (req, res) => {})
 
