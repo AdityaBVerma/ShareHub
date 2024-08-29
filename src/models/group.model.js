@@ -14,15 +14,19 @@ const groupSchema = new Schema({
     docfiles:[
         {
             type: Schema.Types.ObjectId,
-            ref: "Video" 
+            ref: "Doc" 
         }
     ],
     imagefiles:[
         {
             type: Schema.Types.ObjectId,
-            ref: "Video" 
+            ref: "Image" 
         }
-    ]
+    ],
+    ownedInstance: {
+        type: Schema.Types.ObjectId,
+        ref: "Instance"
+    }
 }, {timestamps: true})
 
 export const Group = mongoose.model("Group", groupSchema)

@@ -5,11 +5,26 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js"
 import asyncHandler from "../utils/asyncHandler.js";
 import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js"
+import { Group } from "../models/group.model.js";
+import { Image } from "../models/image.model.js";
+import { Doc } from "../models/doc.model.js";
+import { Video } from "../models/video.model.js";
 
+const deleteResourcesFromCloudinaryOfInstance = async (resource, type) => {
+    if( resource.length > 0){
+        for(const resources in resource){
+            await deleteFromCloudinary(resources.public_id)
+        }
+        console.log(`All ${type} resources deleted from Cloudinary.`);
+    } else {
+        console.log(`No ${type} resources to delete.`);
+    }
+    
+}
 
 const getUserInstances = asyncHandler( async (req, res) => {
     const {userId} = req.params
-    if (!(userId && isValidObject(userId))) {
+    if (!(userId && isValidObjectId(userId))) {
         throw new ApiError(400, "Invalid User Id")
     }
     const instances = await Instance.aggregate([
@@ -21,8 +36,8 @@ const getUserInstances = asyncHandler( async (req, res) => {
         {
             $lookup:{
                 from: "groups",
-                localField: "groups",
-                foreignField: "_id",
+                localField: "_id",
+                foreignField: "ownedInstance",
                 as: "groups",
                 pipeline:[
                     {
@@ -267,7 +282,94 @@ const updateInstance = asyncHandler( async (req, res) => {
 
 })
 
-const deleteInstance = asyncHandler( async (req, res) => {})
+const deleteInstance = asyncHandler( async (req, res) => {
+    const {instanceId} = req.params
+    if (!(instanceId && isValidObjectId(instanceId))) {
+        throw new ApiError(400, "invalid instance id")
+    }
+    const instance = await Instance.findById(instanceId)
+    if (instance.owner.toString()!==req.user._id.toString()) {
+        throw new ApiError(400, "Unauthorized request")
+    }
+    // delete all resources and groups in it
+    const fetchedInstance = await Instance.aggregate([
+        {
+            $match: {
+                _id: mongoose.Types.ObjectId(instanceId)
+            }
+        },
+        {
+            $lookup: {
+                from: "groups",
+                localField: "_id",
+                foreignField: "ownedInstance",
+                as: "groups",
+                pipeline: [
+                    {
+                        $lookup:{
+                            from:"docs",
+                            localField: "_id",
+                            foreignField: "owner",
+                            as: "docs"
+                        }
+                    },
+                    {
+                        $lookup:{
+                            from:"images",
+                            localField: "_id",
+                            foreignField: "owner",
+                            as: "images"
+                        }
+                    },
+                    {
+                        $lookup:{
+                            from:"videos",
+                            localField: "_id",
+                            foreignField: "owner",
+                            as: "videos"
+                        }
+                    },
+                ]
+            }
+        },
+        {
+            $lookup:{
+                from:"comments",
+                localField: "_id",
+                foreignField: "commentOwner",
+                as: "comments"
+            }
+        },
+    ])
+    if (!fetchedInstance.length) {
+        throw new ApiError(400, "groups of the instance not found")
+    }
+    const instanceData = fetchedInstance[0]
+    const docCollection = instanceData.groups.flatMap((groups)=>(groups.docs))
+    const imageCollection = instanceData.groups.flatMap((groups)=>(groups.images))
+    const videoCollection = instanceData.groups.flatMap((groups)=>(groups.videos))
+    await deleteResourcesFromCloudinaryOfInstance(docCollection, 'document');
+    await deleteResourcesFromCloudinaryOfInstance(imageCollection, 'image');
+    await deleteResourcesFromCloudinaryOfInstance(videoCollection, 'video');
+    
+    const deletedGroups = await Group.deleteMany({ ownedInstance: instanceId })
+    const deletedComments = await Comment.deleteMany({instance: instanceId})
+    const groupId = fetchedInstance.groups.map((groups)=>(groups._id))
+    const deletedImages = await Image.deleteMany({
+        group: {$in : groupId}
+    })
+    const deletedVideos = await Video.deleteMany({
+        group: {$in : groupId}
+    })
+    const deletedDocs = await Doc.deleteMany({
+        group: {$in : groupId}
+    })
+    await Instance.findByIdAndDelete(instanceId);
+    const ApiMessage = `${deletedGroups.deletedCount} groups deleted. ${deletedComments.deletedCount} comments deleted. ${deletedImages.deletedCount} images deleted.${deletedVideos.deletedCount} videos deleted. ${deletedDocs.deletedCount} docs deleted.`
+    return res
+    .status(200)
+    .json(new ApiResponse(200, {}, ApiMessage))
+})
 
 const toggleVisibilityStatus = asyncHandler(async (req, res) => {})
 
