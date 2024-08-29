@@ -371,7 +371,43 @@ const deleteInstance = asyncHandler( async (req, res) => {
     .json(new ApiResponse(200, {}, ApiMessage))
 })
 
-const toggleVisibilityStatus = asyncHandler(async (req, res) => {})
+const toggleVisibilityStatus = asyncHandler(async (req, res) => {
+    const { instanceId } = req.params
+    const {password} = req.body
+    if (!(instanceId && isValidObjectId(instanceId))) {
+        throw new ApiError(400, "Not a valid instance id")
+    }
+    const instance = await Instance.findById(instanceId)
+    if (!instance) {
+        throw new ApiError(404, "Instance not found")
+    }
+    if (instance.owner.toString()!==req.user._id.toString()) {
+        throw new ApiError(401, "Unauthorized request")
+    }
+    if(instance.isPrivate==="public" && !password){
+        throw new ApiError(400, "Password is required")
+    }
+    const updatedInstance = await Instance.findByIdAndUpdate(
+        instanceId,
+        {
+            $set:{
+                isPrivate: (instance.isPrivate === "public")? "private" : "public",
+                password: (instance.isPrivate === "public")? password : ""
+            }
+        },
+        {
+            new: true
+        }
+    ).select("-password")
+
+    if (!updatedInstance) {
+        throw new ApiError(400, "There was a problem changing visibility status")
+    }
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, updatedInstance, "Visibility status changed successfully"))
+})
 
 export {
     getUserInstances,
