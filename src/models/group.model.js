@@ -26,6 +26,10 @@ const groupSchema = new Schema({
     ownedInstance: {
         type: Schema.Types.ObjectId,
         ref: "Instance"
+    },
+    owner: {
+        type: Schema.Types.ObjectId,
+        ref: "User"
     }
 }, {timestamps: true})
 
