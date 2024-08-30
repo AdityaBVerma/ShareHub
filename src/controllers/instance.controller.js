@@ -1,6 +1,5 @@
 import mongoose, { isValidObjectId } from "mongoose";
 import { Instance } from "../models/instance.model.js";
-import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js"
 import asyncHandler from "../utils/asyncHandler.js";
@@ -41,8 +40,20 @@ const getUserInstances = asyncHandler( async (req, res) => {
                 as: "groups",
                 pipeline:[
                     {
-                        $project: {
-                            name: 1
+                        $lookup:{
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "users",
+                            pipeline: [
+                                {
+                                    $project:{
+                                        username: 1,
+                                        avatar: 1,
+                                        email: 1
+                                    }
+                                }
+                            ]
                         }
                     }
                 ]
