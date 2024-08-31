@@ -309,7 +309,7 @@ const deleteInstance = asyncHandler( async (req, res) => {
                         $lookup:{
                             from:"docs",
                             localField: "_id",
-                            foreignField: "owner",
+                            foreignField: "group",
                             as: "docs"
                         }
                     },
@@ -317,7 +317,7 @@ const deleteInstance = asyncHandler( async (req, res) => {
                         $lookup:{
                             from:"images",
                             localField: "_id",
-                            foreignField: "owner",
+                            foreignField: "group",
                             as: "images"
                         }
                     },
@@ -325,7 +325,7 @@ const deleteInstance = asyncHandler( async (req, res) => {
                         $lookup:{
                             from:"videos",
                             localField: "_id",
-                            foreignField: "owner",
+                            foreignField: "group",
                             as: "videos"
                         }
                     },

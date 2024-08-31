@@ -1,9 +1,10 @@
-import { isValidObjectId } from "mongoose";
+import mongoose, { isValidObjectId } from "mongoose";
 import asyncHandler from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { Instance } from "../models/instance.model.js"
 import { Group } from "../models/group.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { deleteResourcesFromCloudinary } from "../utils/cloudinary.js";
 
 const createNewGroup = asyncHandler( async (req, res) => {
     const {instanceId} = req.params
@@ -194,7 +195,99 @@ const updateGroup = asyncHandler( async (req, res) => {
     .json(new ApiResponse(200, updatedGroup, "Group Updated successfully"))
 })
 
-const deleteGroup = asyncHandler( async (req, res) => {})
+const deleteGroup = asyncHandler( async (req, res) => {
+    const { instanceId, groupId } = req.params
+    if (!(instanceId && isValidObjectId(instanceId))) {
+        throw new ApiError(400, "Invalid instanceId")
+    }
+    if (!(groupId && isValidObjectId(groupId))) {
+        throw new ApiError(400, "Invalid Group Id")
+    }
+    const instance = await Instance.findById(instanceId)
+    const group = await Group.findById(groupId)
+    if (!instance) {
+        throw new ApiError(404 , "Instance not found")
+    }
+    if (!group) {
+        throw new ApiError(404 , "Group not found")
+    }
+    if (instance.owner.toString()!==req.user._id.toString() || group.owner.toString()!==req.user._id.toString()) {
+        throw new ApiError(403, "Unauthorized request")
+    }
+    const fetchedGroup = await Group.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(groupId)
+            }
+        },
+        {
+            $lookup:{
+                from:"docs",
+                localField:"_id",
+                foreignField:"group",
+                as: "docs",
+                pipeline:[
+                    {
+                        $project:{
+                            docfile: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $lookup:{
+                from:"videos",
+                localField:"_id",
+                foreignField:"group",
+                as: "videos",
+                pipeline:[
+                    {
+                        $project:{
+                            videofile: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $lookup:{
+                from:"images",
+                localField:"_id",
+                foreignField:"group",
+                as: "images",
+                pipeline:[
+                    {
+                        $project:{
+                            imagefile: 1
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+    if (!fetchedGroup) {
+        throw new ApiError(404, "No group found to delete")
+    }
+    await deleteResourcesFromCloudinary(fetchedGroup[0].docs, "docs")
+    await deleteResourcesFromCloudinary(fetchedGroup[0].images, "images")
+    await deleteResourcesFromCloudinary(fetchedGroup[0].videos, "videos")
+
+    const deletedImages = await Image.deleteMany({
+        group: groupId
+    })
+    const deletedVideos = await Video.deleteMany({
+        group: groupId
+    })
+    const deletedDocs = await Doc.deleteMany({
+        group: groupId
+    })
+    const deletedGroups = await Group.deleteOne({ _id: groupId })
+    const ApiMessage = `${deletedGroups.deletedCount} group(s) deleted. ${deletedImages.deletedCount} images deleted.${deletedVideos.deletedCount} videos deleted. ${deletedDocs.deletedCount} docs deleted.`
+    return res
+    .status(200)
+    .json(new ApiResponse(200, {}, ApiMessage))
+})
 
 //move group from one instance to another
 
