@@ -75,6 +75,10 @@ const createNewInstance = asyncHandler( async (req, res) => {
     if (title.trim()==="") {
         throw new ApiError(400, "Instance title needed")
     }
+    const existedInstance = await Instance.findOne({title})
+    if(existedInstance){
+        throw new ApiError(400, "The instance with this name aldready exists")
+    }
     let thumbnail
     if (thubmnailLocalPath) {
         thumbnail = await uploadOnCloudinary(thumbnail)

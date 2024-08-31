@@ -27,6 +27,10 @@ const createNewGroup = asyncHandler( async (req, res) => {
     if (name.trim()==="") {
         throw new ApiError(400, "name is required")
     }
+    const existedGroup = await Group.findOne({name})
+    if(existedGroup){
+        throw new ApiError(400, "The Group with this name aldready exists")
+    }
     const group = await Group.create(
         {
             name: name.trim(),
