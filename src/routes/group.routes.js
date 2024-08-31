@@ -5,7 +5,8 @@ import {
     deleteGroup, 
     getGroupById, 
     updateGroup,
-    moveGroup
+    moveGroup,
+    getGroupCollaborators
 } from "../controllers/group.controller.js";
 
 const router = Router();
@@ -22,5 +23,8 @@ router.route('/instances/:instanceId/groups/:groupId')
 
 router.route('/groups/:groupId/move')
     .post(moveGroup)
+
+router.route('/group/:groupId')
+    .get(getGroupCollaborators)
 
 export default router

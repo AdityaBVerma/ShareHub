@@ -337,12 +337,137 @@ const moveGroup = asyncHandler( async (req, res) => {
 
 })
 
-//get group collaborators
+const getGroupCollaborators = asyncHandler( async (req, res) => {
+    const { groupId } = req.params
+    if (!(groupId && isValidObjectId(groupId))) {
+        throw new ApiError(400, "Invalid group id")
+    }
+
+    const group = await Group.aggregate([
+        {
+            $match:{
+                _id: new mongoose.Types.ObjectId(groupId)
+            }
+        },
+        {
+            $lookup:{
+                from:"docs",
+                localField:"_id",
+                foreignField:"group",
+                as: "docs",
+                pipeline:[
+                    {
+                        $lookup:{
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owners",
+                            pipeline: [
+                                {
+                                    $project:{
+                                        username: 1,
+                                        avatar: 1,
+                                        email: 1
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $lookup:{
+                from:"videos",
+                localField:"_id",
+                foreignField:"group",
+                as: "videos",
+                pipeline:[
+                    {
+                        $lookup:{
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owners",
+                            pipeline: [
+                                {
+                                    $project:{
+                                        username: 1,
+                                        avatar: 1,
+                                        email: 1
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $lookup:{
+                from:"images",
+                localField:"_id",
+                foreignField:"group",
+                as: "images",
+                pipeline:[
+                    {
+                        $lookup:{
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owners",
+                            pipeline: [
+                                {
+                                    $project:{
+                                        username: 1,
+                                        avatar: 1,
+                                        email: 1
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields:{
+                allUsers:{
+                    $reduce:{
+                        input:{
+                            //concat all arrays into one array containing all owners
+                            $concatArrays:[
+                                    { $map: {input: "$docs", as:"doc", in:"$$doc.owner"}},
+                                    { $map: {input: "$videos", as:"video", in:"$$video.owner"}},
+                                    { $map: {input: "$images", as:"image", in:"$$image.owner"}},
+                            ]
+                        },
+                        initialValue: [],
+                        //take the union of owners so none can repeat
+                        // $$ value is the prev and $$this is the current
+                        in:{
+                            $setUnion: ["$$value", "$$this"]
+                        }
+                    }
+                }
+            }
+        }
+    ])
+
+    if (!group.length) {
+        throw new ApiError(404, "Could'nt get group details")
+    }
+    
+    return res
+    .status(200)
+    .json(new ApiResponse(200, group[0].allUsers, "All group colaborators found"))
+})
 
 export {
     createNewGroup,
     getGroupById,
     updateGroup,
     deleteGroup,
-    moveGroup
+    moveGroup,
+    getGroupCollaborators
 }
