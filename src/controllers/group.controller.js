@@ -198,6 +198,8 @@ const deleteGroup = asyncHandler( async (req, res) => {})
 
 //move group from one instance to another
 
+//get group collaborators
+
 export {
     createNewGroup,
     getGroupById,

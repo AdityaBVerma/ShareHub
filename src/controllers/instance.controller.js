@@ -3,23 +3,12 @@ import { Instance } from "../models/instance.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js"
 import asyncHandler from "../utils/asyncHandler.js";
-import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js"
+import { deleteFromCloudinary, uploadOnCloudinary, deleteResourcesFromCloudinary } from "../utils/cloudinary.js"
 import { Group } from "../models/group.model.js";
 import { Image } from "../models/image.model.js";
 import { Doc } from "../models/doc.model.js";
 import { Video } from "../models/video.model.js";
 
-const deleteResourcesFromCloudinaryOfInstance = async (resource, type) => {
-    if( resource.length > 0){
-        for(const resources in resource){
-            await deleteFromCloudinary(resources.public_id)
-        }
-        console.log(`All ${type} resources deleted from Cloudinary.`);
-    } else {
-        console.log(`No ${type} resources to delete.`);
-    }
-    
-}
 
 const getUserInstances = asyncHandler( async (req, res) => {
     const {userId} = req.params
@@ -359,9 +348,9 @@ const deleteInstance = asyncHandler( async (req, res) => {
     const docCollection = instanceData.groups.flatMap((groups)=>(groups.docs))
     const imageCollection = instanceData.groups.flatMap((groups)=>(groups.images))
     const videoCollection = instanceData.groups.flatMap((groups)=>(groups.videos))
-    await deleteResourcesFromCloudinaryOfInstance(docCollection, 'document');
-    await deleteResourcesFromCloudinaryOfInstance(imageCollection, 'image');
-    await deleteResourcesFromCloudinaryOfInstance(videoCollection, 'video');
+    await deleteResourcesFromCloudinary(docCollection, 'document');
+    await deleteResourcesFromCloudinary(imageCollection, 'image');
+    await deleteResourcesFromCloudinary(videoCollection, 'video');
     
     const deletedGroups = await Group.deleteMany({ ownedInstance: instanceId })
     const deletedComments = await Comment.deleteMany({instance: instanceId})

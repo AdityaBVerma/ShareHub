@@ -37,7 +37,20 @@ const deleteFromCloudinary = async(public_id) => {
     }
 }
 
+const deleteResourcesFromCloudinary = async (resource, type) => {
+    if( resource.length > 0){
+        for(const resources in resource){
+            await deleteFromCloudinary(resources.public_id)
+        }
+        console.log(`All ${type} resources deleted from Cloudinary.`);
+    } else {
+        console.log(`No ${type} resources to delete.`);
+    }
+    
+}
+
 export {
     uploadOnCloudinary,
-    deleteFromCloudinary
+    deleteFromCloudinary,
+    deleteResourcesFromCloudinary,
 }
