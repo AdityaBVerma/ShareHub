@@ -293,7 +293,49 @@ const deleteGroup = asyncHandler( async (req, res) => {
     .json(new ApiResponse(200, {}, ApiMessage))
 })
 
-//move group from one instance to another
+const moveGroup = asyncHandler( async (req, res) => {
+    const { groupId } = req.params
+    const { fromInstanceId, toInstanceId } = req.body
+    if (!(groupId && isValidObjectId(groupId))) {
+        throw new ApiError(400, "invalid group ID")
+    }
+    if (!(fromInstanceId && isValidObjectId(fromInstanceId))) {
+        throw new ApiError(400, "invalid fromInstance ID")
+    }
+    if (!(toInstanceId && isValidObjectId(toInstanceId))) {
+        throw new ApiError(400, "invalid toInstance ID")
+    }
+    if (fromInstanceId.toString() === toInstanceId.toString()) {
+        throw new ApiError(400, "The group is already in the target instance")
+    }
+    const fromInstance = await Instance.findById(fromInstanceId)
+    const toInstance = await Instance.findById(toInstanceId)
+    if (!(fromInstance.owner.toString()===toInstance.owner.toString() && toInstance.owner.toString()===req.user._id.toString())) {
+        throw new ApiError(403, "Unauthorized request")
+    }
+    const group = await Group.findById(groupId);
+    if (!group || group.ownedInstance.toString() !== fromInstanceId.toString()) {
+        throw new ApiError(400, "Group does not belong to the specified fromInstance");
+    }
+    const movedGroup = await Group.findByIdAndUpdate(
+        groupId,
+        {
+            $set:{
+                ownedInstance: toInstanceId
+            }
+        },
+        {
+            new :true
+        }
+    ).select("-docfiles -imagefiles -videofiles")
+    if (!movedGroup) {
+        throw new ApiError(400, "Could'nt move group")
+    }
+    return res
+    .status(200)
+    .json(new ApiResponse(200, movedGroup, `group moved from ${fromInstance.title} to ${toInstance.title}`))
+
+})
 
 //get group collaborators
 
@@ -301,5 +343,6 @@ export {
     createNewGroup,
     getGroupById,
     updateGroup,
-    deleteGroup
+    deleteGroup,
+    moveGroup
 }
