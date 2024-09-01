@@ -152,7 +152,7 @@ const refreshAccessToken = asyncHandler( async (req, res) => {
     try {
         const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
     
-        const user = await findById(decodedToken?._id)
+        const user = await User.findById(decodedToken?._id)
     
         if (!user) {
             throw new ApiError(404, "User not found")

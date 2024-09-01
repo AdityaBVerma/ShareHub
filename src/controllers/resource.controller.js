@@ -183,7 +183,7 @@ const getResourceById = asyncHandler( async (req, res) => {
 
 const updateResource = asyncHandler( async (req, res) => {
     const { resourceId, instanceId, resourcetype } = req.params
-    const { password, title } = req.body
+    const { title } = req.body
     if (!(instanceId && isValidObjectId(instanceId))) {
         throw new ApiError(400, "Invalid instanceId")
     }
@@ -215,15 +215,7 @@ const updateResource = asyncHandler( async (req, res) => {
         throw new ApiError(404, "Resource not found");
     }
     if (instance.owner.toString() !== req.user._id.toString() || resource.owner.toString() !== req.user._id.toString()) {
-        if (instance.isPrivate==="private") {
-            if (!password || password.trim()==="") {
-                throw new ApiError(400, "Password is required")
-            }
-            const isPasswordCorrect = await instance.isPasswordCorrect(password)
-            if (!isPasswordCorrect) {
-                throw new ApiError(400, "Incorrect Password")
-            }
-        }
+        throw new ApiError(403, "Unauthorized request to update resource")
     }
 
     let updatedResource
@@ -280,7 +272,6 @@ const updateResource = asyncHandler( async (req, res) => {
 
 const deleteResource = asyncHandler( async (req, res) => {
     const { resourceId, instanceId, resourcetype } = req.params
-    const { password } = req.body
 
     if (!(instanceId && isValidObjectId(instanceId))) {
         throw new ApiError(400, "Invalid instanceId")
@@ -313,15 +304,7 @@ const deleteResource = asyncHandler( async (req, res) => {
     }
 
     if (instance.owner.toString() !== req.user._id.toString() || resource.owner.toString() !== req.user._id.toString()) {
-        if (instance.isPrivate==="private") {
-            if (!password || password.trim()==="") {
-                throw new ApiError(400, "Password is required")
-            }
-            const isPasswordCorrect = await instance.isPasswordCorrect(password)
-            if (!isPasswordCorrect) {
-                throw new ApiError(400, "Incorrect Password")
-            }
-        }
+        throw new ApiError(403, "Unauthorized request to delete resource")
     }
 
     const deletedResourceFromCloudinary = await deleteFromCloudinary(resource.public_id)
@@ -354,7 +337,7 @@ const deleteResource = asyncHandler( async (req, res) => {
 
 const moveResource = asyncHandler( async (req, res) => {
     const { resourceId, instanceId, resourcetype } = req.params
-    const { password, fromGroupId, toGroupId } = req.body
+    const { fromGroupId, toGroupId } = req.body
     if (!(instanceId && isValidObjectId(instanceId))) {
         throw new ApiError(400, "Invalid instanceId")
     }
@@ -391,16 +374,8 @@ const moveResource = asyncHandler( async (req, res) => {
     if (!resource) {
         throw new ApiError(404, "Resource not found");
     }
-    if (instance.owner.toString() !== req.user._id.toString() || resource.owner.toString() !== req.user._id.toString()) {
-        if (instance.isPrivate==="private") {
-            if (!password || password.trim()==="") {
-                throw new ApiError(400, "Password is required")
-            }
-            const isPasswordCorrect = await instance.isPasswordCorrect(password)
-            if (!isPasswordCorrect) {
-                throw new ApiError(400, "Incorrect Password")
-            }
-        }
+    if (instance.owner.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "Unauthorized request to move resource")
     }
     let movedResource
     switch (resourcetype) {
@@ -453,7 +428,7 @@ const moveResource = asyncHandler( async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, movedResource, "Resource moved successfully"))
 
-})
+})// if fromGroup and to group instancee owner are the same then only add
 
 export {
     publishResource,
