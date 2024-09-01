@@ -152,32 +152,26 @@ const getGroupById = asyncHandler( async (req, res) => {
 
 const updateGroup = asyncHandler( async (req, res) => {
     const { instanceId, groupId } = req.params
-    const { name, password } = req.body
+    const { name, } = req.body
     if (!(instanceId && isValidObjectId(instanceId))) {
         throw new ApiError(400, "Invalid instanceId")
     }
     if (!(groupId && isValidObjectId(groupId))) {
         throw new ApiError(400, "Invalid Group Id")
     }
+    if (!name || name.trim()==="") {
+        throw new ApiError(400, "New Name is required")
+    }
     const instance = await Instance.findById(instanceId)
+    const group = await Group.findById(groupId)
     if (!instance) {
         throw new ApiError(404 , "Instance not found")
     }
-    if (instance.owner.toString()!==req.user._id.toString()) {
-        if (instance.isPrivate==="private") {
-            if (!password || password.trim()==="") {
-                throw new ApiError(400, "Password is required")
-            }
-            if (password) {
-                const isPasswordCorrect = await instance.isPasswordCorrect(password)
-                if (!isPasswordCorrect) {
-                    throw new ApiError(400, "Incorrect Password")
-                }
-            }
-        }
+    if (!group) {
+        throw new ApiError(404 , "Group not found")
     }
-    if (!name || name.trim()==="") {
-        throw new ApiError(400, "New Name is required")
+    if (instance.owner.toString()!==req.user._id.toString() && group.owner.toString()!==req.user._id.toString()) {
+        throw new ApiError(403, "Unauthorized request to delete group")
     }
     const updatedGroup = await Group.findByIdAndUpdate(
         groupId,
@@ -215,8 +209,8 @@ const deleteGroup = asyncHandler( async (req, res) => {
     if (!group) {
         throw new ApiError(404 , "Group not found")
     }
-    if (instance.owner.toString()!==req.user._id.toString() || group.owner.toString()!==req.user._id.toString()) {
-        throw new ApiError(403, "Unauthorized request")
+    if (instance.owner.toString()!==req.user._id.toString() && group.owner.toString()!==req.user._id.toString()) {
+        throw new ApiError(403, "Unauthorized request to delete group")
     }
     const fetchedGroup = await Group.aggregate([
         {
@@ -270,7 +264,7 @@ const deleteGroup = asyncHandler( async (req, res) => {
             }
         }
     ])
-    if (!fetchedGroup) {
+    if (!fetchedGroup.length) {
         throw new ApiError(404, "No group found to delete")
     }
     await deleteResourcesFromCloudinary(fetchedGroup[0].docs, "docs")
@@ -310,8 +304,8 @@ const moveGroup = asyncHandler( async (req, res) => {
     }
     const fromInstance = await Instance.findById(fromInstanceId)
     const toInstance = await Instance.findById(toInstanceId)
-    if (!(fromInstance.owner.toString()===toInstance.owner.toString() && toInstance.owner.toString()===req.user._id.toString())) {
-        throw new ApiError(403, "Unauthorized request")
+    if (fromInstance.owner.toString() !== req.user._id.toString() || toInstance.owner.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "Unauthorized request");
     }
     const group = await Group.findById(groupId);
     if (!group || group.ownedInstance.toString() !== fromInstanceId.toString()) {
