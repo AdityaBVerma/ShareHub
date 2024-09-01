@@ -183,7 +183,101 @@ const getResourceById = asyncHandler( async (req, res) => {
 
 })
 
-const updateResource = asyncHandler( async (req, res) => {})
+const updateResource = asyncHandler( async (req, res) => {
+    const { resourceId, instanceId, resourcetype } = req.params
+    const { password, title } = req.body
+    if (!(instanceId && isValidObjectId(instanceId))) {
+        throw new ApiError(400, "Invalid instanceId")
+    }
+    if (!(resourceId && isValidObjectId(resourceId))) {
+        throw new ApiError(400, "Invalid Resource Id")
+    }
+    const instance = await Instance.findById(instanceId)
+    if (!instance) {
+        throw new ApiError(404 , "Instance not found")
+    }
+    let resource;
+    switch (resourcetype) {
+        case 'videos':
+            resource = await Video.findById(resourceId);
+            break;
+        case 'images':
+            resource = await Image.findById(resourceId);
+            break;
+        case 'docs':
+            resource = await Doc.findById(resourceId);
+            break;
+        default:
+            throw new ApiError(400, "Invalid Resource type");
+    }
+    if (!resource) {
+        throw new ApiError(404, "Resource not found");
+    }
+    if (instance.owner.toString() !== req.user._id.toString() || resource.owner.toString() !== req.user._id.toString()) {
+        if (instance.isPrivate==="private") {
+            if (!password || password.trim()==="") {
+                throw new ApiError(400, "Password is required")
+            }
+            const isPasswordCorrect = await instance.isPasswordCorrect(password)
+            if (!isPasswordCorrect) {
+                throw new ApiError(400, "Incorrect Password")
+            }
+        }
+    }
+    if (!title || title.trim()==="") {
+        throw new ApiError(400, "Title is required")
+    }
+    let updatedResource
+    switch (resourcetype) {
+        case 'videos':
+            updatedResource = await Video.findByIdAndUpdate(
+                resourceId,
+                {
+                    $set:{
+                        title:title
+                    }
+                },
+                {
+                    new: true
+                }
+            )
+            break;
+        case 'images':
+            updatedResource = await Image.findByIdAndUpdate(
+                resourceId,
+                {
+                    $set:{
+                        title:title
+                    }
+                },
+                {
+                    new: true
+                }
+            )
+            break;
+        case 'docs':
+            updatedResource = await Doc.findByIdAndUpdate(
+                resourceId,
+                {
+                    $set:{
+                        title:title
+                    }
+                },
+                {
+                    new: true
+                }
+            )
+            break;
+        default:
+            throw new ApiError(400, "invalid Resource type")
+    }
+    if (!updatedResource) {
+        throw new ApiError(404, "Couldn't update resource")
+    }
+    return res
+    .status(200)
+    .json(new ApiResponse(200, updatedResource, "Resource updated successfully"))
+})
 
 const deleteResource = asyncHandler( async (req, res) => {})
 
