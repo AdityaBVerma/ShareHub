@@ -13,9 +13,9 @@ const router = Router();
 
 router.route("/:groupId").get(getAllResourcesOfGroup)
 
-router.route("/:groupId/:resourcetype").post(verifyJWT, uploadType, publishResource)
+router.route("/:groupId/:instanceId/:resourcetype").post(verifyJWT, uploadType, publishResource)
 
-router.route("/:resourcetype/:resourceId")
+router.route("/:insstanceId/:resourcetype/:resourceId")
     .get(getResourceById)
     .patch(updateResource)
     .delete(deleteResource)
