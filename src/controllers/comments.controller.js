@@ -7,6 +7,7 @@ import { ApiResponse } from "../utils/ApiResponse.js"
 
 const getInstanceComments = asyncHandler( async (req, res) => {
     const { instanceId } = req.params
+    const {password } = req.body
     const {page = 2, limit = 10} = req.query
     const options = {
         page: parseInt(page, 10),
@@ -61,7 +62,7 @@ const getInstanceComments = asyncHandler( async (req, res) => {
     if (!fetchedComments.length) {
         throw new ApiError(400, "Couldn't fetch comments")
     }
-    const paginatedComments = Comment.aggregatePaginate(myAggregate, options)
+    const paginatedComments = Comment.aggregatePaginate(fetchedComments, options)
     if (!paginatedComments) {
         throw new ApiError(400, "Couldn't paginate comments")
     }
@@ -127,18 +128,8 @@ const updateComments = asyncHandler( async (req, res) => {
     if (!comment) {
         throw new ApiError(404, "Comment not found")
     }
-    if (instance.owner.toString()!==req.user._id.toString() || comment.commentOwner.toString() !== req.user._id.toString()) {
-        if (instance.isPrivate === "private") {
-            if (!password || password.trim() === "") {
-                throw new ApiError(400, "Password is required");
-            }
-            const isPasswordCorrect = await instance.isPasswordCorrect(password);
-            if (!isPasswordCorrect) {
-                throw new ApiError(400, "Invalid password");
-            }
-        }
-    } else {
-        throw new ApiError(403, "Unauthorized to delete comment");
+    if (comment.commentOwner.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "Unauthorized access to update a comment")
     }
     const updatedComment = await Comment.findByIdAndUpdate(
         commentId,
@@ -178,17 +169,7 @@ const deleteComments = asyncHandler( async (req, res) => {
         throw new ApiError(404, "Comment not found")
     }
     if (instance.owner.toString()!==req.user._id.toString() || comment.commentOwner.toString() !== req.user._id.toString()) {
-        if (instance.isPrivate === "private") {
-            if (!password || password.trim() === "") {
-                throw new ApiError(400, "Password is required");
-            }
-            const isPasswordCorrect = await instance.isPasswordCorrect(password);
-            if (!isPasswordCorrect) {
-                throw new ApiError(400, "Invalid password");
-            }
-        }
-    }else {
-        throw new ApiError(403, "Unauthorized to delete comment");
+        throw new ApiError(403, "Unauthorized to delete comment")
     }
     const deletedComment = await Comment.findByIdAndDelete(commentId)
     if (!deletedComment) {
