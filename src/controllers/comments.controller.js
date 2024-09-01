@@ -74,6 +74,8 @@ const updateComments = asyncHandler( async (req, res) => {
                 throw new ApiError(400, "Invalid password");
             }
         }
+    } else {
+        throw new ApiError(403, "Unauthorized to delete comment");
     }
     const updatedComment = await Comment.findByIdAndUpdate(
         commentId,
@@ -95,7 +97,44 @@ const updateComments = asyncHandler( async (req, res) => {
     .json(new ApiResponse(200, updatedComment, "Comment Updated successfully"))
 })
 
-const deleteComments = asyncHandler( async (req, res) => {})
+const deleteComments = asyncHandler( async (req, res) => {
+    const { password } = req.body
+    const { instanceId, commentId } = req.params
+    if (!(instanceId && isValidObjectId(instanceId))) {
+        throw new ApiError(400, "Invalid Instance Id")
+    }
+    if (!(commentId && isValidObjectId(commentId))) {
+        throw new ApiError(400, "Invalid Comment Id")
+    }
+    const instance = await Instance.findById(instanceId)
+    if (!instance) {
+        throw new ApiError(404, "Instance not found")
+    }
+    const comment = await Comment.findById(commentId)
+    if (!comment) {
+        throw new ApiError(404, "Comment not found")
+    }
+    if (instance.owner.toString()!==req.user._id.toString() || comment.commentOwner.toString() !== req.user._id.toString()) {
+        if (instance.isPrivate === "private") {
+            if (!password || password.trim() === "") {
+                throw new ApiError(400, "Password is required");
+            }
+            const isPasswordCorrect = await instance.isPasswordCorrect(password);
+            if (!isPasswordCorrect) {
+                throw new ApiError(400, "Invalid password");
+            }
+        }
+    }else {
+        throw new ApiError(403, "Unauthorized to delete comment");
+    }
+    const deletedComment = await Comment.findByIdAndDelete(commentId)
+    if (!deletedComment) {
+        throw new ApiError(400, "Couldn't delete comment")
+    }
+    return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Comment deleted successfully"))
+})
 
 export {
     getInstanceComments,
