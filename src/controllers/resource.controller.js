@@ -8,8 +8,6 @@ import { Doc } from "../models/doc.model.js";
 import { Image } from "../models/image.model.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
 
-const getAllResourcesOfGroup = asyncHandler( async (req, res) => {})
-
 const publishResource = asyncHandler( async (req, res) => {
     const { groupId, instanceId, resourcetype } = req.params
     const { password, title } = req.body
@@ -196,6 +194,9 @@ const updateResource = asyncHandler( async (req, res) => {
     if (!instance) {
         throw new ApiError(404 , "Instance not found")
     }
+    if (!title || title.trim()==="") {
+        throw new ApiError(400, "Title is required")
+    }
     let resource;
     switch (resourcetype) {
         case 'videos':
@@ -224,9 +225,7 @@ const updateResource = asyncHandler( async (req, res) => {
             }
         }
     }
-    if (!title || title.trim()==="") {
-        throw new ApiError(400, "Title is required")
-    }
+
     let updatedResource
     switch (resourcetype) {
         case 'videos':
@@ -353,11 +352,113 @@ const deleteResource = asyncHandler( async (req, res) => {
     .json(new ApiResponse(200, {}, "Resource deleted successfully"))
 })
 
+const moveResource = asyncHandler( async (req, res) => {
+    const { resourceId, instanceId, resourcetype } = req.params
+    const { password, fromGroupId, toGroupId } = req.body
+    if (!(instanceId && isValidObjectId(instanceId))) {
+        throw new ApiError(400, "Invalid instanceId")
+    }
+    if (!(resourceId && isValidObjectId(resourceId))) {
+        throw new ApiError(400, "Invalid Resource Id")
+    }
+    if (!(fromGroupId && isValidObjectId(fromGroupId))) {
+        throw new ApiError(400, "Invalid fromGroupId Id")
+    }
+    if (!(toGroupId && isValidObjectId(toGroupId))) {
+        throw new ApiError(400, "Invalid toGroupId Id")
+    }
+    if (fromGroupId.toString() === toGroupId.toString()) {
+        throw new ApiError(400, "No change is required")
+    }
+    const instance = await Instance.findById(instanceId)
+    if (!instance) {
+        throw new ApiError(404 , "Instance not found")
+    }
+    let resource;
+    switch (resourcetype) {
+        case 'videos':
+            resource = await Video.findById(resourceId);
+            break;
+        case 'images':
+            resource = await Image.findById(resourceId);
+            break;
+        case 'docs':
+            resource = await Doc.findById(resourceId);
+            break;
+        default:
+            throw new ApiError(400, "Invalid Resource type");
+    }
+    if (!resource) {
+        throw new ApiError(404, "Resource not found");
+    }
+    if (instance.owner.toString() !== req.user._id.toString() || resource.owner.toString() !== req.user._id.toString()) {
+        if (instance.isPrivate==="private") {
+            if (!password || password.trim()==="") {
+                throw new ApiError(400, "Password is required")
+            }
+            const isPasswordCorrect = await instance.isPasswordCorrect(password)
+            if (!isPasswordCorrect) {
+                throw new ApiError(400, "Incorrect Password")
+            }
+        }
+    }
+    let movedResource
+    switch (resourcetype) {
+        case 'videos':
+            movedResource = await Video.findByIdAndUpdate(
+                resourceId,
+                {
+                    $set:{
+                        group: toGroupId
+                    }
+                },
+                {
+                    new: true
+                }
+            )
+            break;
+        case 'images':
+            movedResource = await Image.findByIdAndUpdate(
+                resourceId,
+                {
+                    $set:{
+                        group: toGroupId
+                    }
+                },
+                {
+                    new: true
+                }
+            )
+            break;
+        case 'docs':
+            movedResource = await Doc.findByIdAndUpdate(
+                resourceId,
+                {
+                    $set:{
+                        group: toGroupId
+                    }
+                },
+                {
+                    new: true
+                }
+            )
+            break;
+        default:
+            throw new ApiError(400, "invalid Resource type")
+    }
+    if (!movedResource) {
+        throw new ApiError(404, "Couldn't move resource")
+    }
+    return res
+    .status(200)
+    .json(new ApiResponse(200, movedResource, "Resource moved successfully"))
+
+})
 
 export {
-    getAllResourcesOfGroup,
     publishResource,
     getResourceById,
     updateResource,
-    deleteResource
+    deleteResource,
+    moveResource
 }

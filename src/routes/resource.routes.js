@@ -3,21 +3,24 @@ import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { uploadType } from "../middlewares/upload.middleware.js";
 import { 
     deleteResource,
-    getAllResourcesOfGroup,
     getResourceById, 
     publishResource,
     updateResource,
+    moveResource
 } from "../controllers/resource.controller.js";
 
 const router = Router();
 
-router.route("/:groupId").get(getAllResourcesOfGroup)
+router.use(verifyJWT)
 
-router.route("/:groupId/:instanceId/:resourcetype").post(verifyJWT, uploadType, publishResource)
+router.route("/:groupId/:instanceId/:resourcetype").post(uploadType, publishResource)
 
 router.route("/:instanceId/:resourcetype/:resourceId")
     .get(getResourceById)
     .patch(updateResource)
     .delete(deleteResource)
+
+router.route("/:instanceId/:resourcetype/:resourceId/move")
+    .post(moveResource)
 
 export default router
