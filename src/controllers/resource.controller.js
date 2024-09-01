@@ -2,7 +2,7 @@ import asyncHandler from "../utils/asyncHandler.js";
 import { Instance } from "../models/instance.model.js";
 import { Group } from "../models/group.model.js";
 import { ApiError } from "../utils/ApiError.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
 import { Video } from "../models/video.model.js";
 import { Doc } from "../models/doc.model.js";
 import { Image } from "../models/image.model.js"
@@ -279,7 +279,79 @@ const updateResource = asyncHandler( async (req, res) => {
     .json(new ApiResponse(200, updatedResource, "Resource updated successfully"))
 })
 
-const deleteResource = asyncHandler( async (req, res) => {})
+const deleteResource = asyncHandler( async (req, res) => {
+    const { resourceId, instanceId, resourcetype } = req.params
+    const { password } = req.body
+
+    if (!(instanceId && isValidObjectId(instanceId))) {
+        throw new ApiError(400, "Invalid instanceId")
+    }
+    if (!(resourceId && isValidObjectId(resourceId))) {
+        throw new ApiError(400, "Invalid Resource Id")
+    }
+
+    const instance = await Instance.findById(instanceId)
+    if (!instance) {
+        throw new ApiError(404 , "Instance not found")
+    }
+
+    let resource;
+    switch (resourcetype) {
+        case 'videos':
+            resource = await Video.findById(resourceId);
+            break;
+        case 'images':
+            resource = await Image.findById(resourceId);
+            break;
+        case 'docs':
+            resource = await Doc.findById(resourceId);
+            break;
+        default:
+            throw new ApiError(400, "Invalid Resource type");
+    }
+    if (!resource) {
+        throw new ApiError(404, "Resource not found");
+    }
+
+    if (instance.owner.toString() !== req.user._id.toString() || resource.owner.toString() !== req.user._id.toString()) {
+        if (instance.isPrivate==="private") {
+            if (!password || password.trim()==="") {
+                throw new ApiError(400, "Password is required")
+            }
+            const isPasswordCorrect = await instance.isPasswordCorrect(password)
+            if (!isPasswordCorrect) {
+                throw new ApiError(400, "Incorrect Password")
+            }
+        }
+    }
+
+    const deletedResourceFromCloudinary = await deleteFromCloudinary(resource.public_id)
+    if (!deletedResourceFromCloudinary) {
+        throw new ApiError(400, "Couldn't delete resource from cloudinary")
+    }
+
+    let deletedResource
+    switch (resourcetype) {
+        case 'videos':
+            deletedResource = await Video.findByIdAndDelete(resourceId)
+            break;
+        case 'images':
+            deletedResource = await Image.findByIdAndDelete(resourceId)
+            break;
+        case 'docs':
+            deletedResource = await Doc.findByIdAndDelete(resourceId)
+            break;
+        default:
+            throw new ApiError(400, "invalid Resource type")
+    }
+    if (!deletedResource) {
+        throw new ApiError(404, "Couldn't delete resource")
+    }
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Resource deleted successfully"))
+})
 
 
 export {
