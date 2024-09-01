@@ -1,11 +1,74 @@
-import { isValidObjectId } from "mongoose"
+import mongoose, { isValidObjectId } from "mongoose"
 import asyncHandler from "../utils/asyncHandler.js"
 import { ApiError } from "../utils/ApiError.js"
 import { Instance } from "../models/instance.model.js"
 import { Comment } from "../models/comment.model.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 
-const getInstanceComments = asyncHandler( async (req, res) => {})
+const getInstanceComments = asyncHandler( async (req, res) => {
+    const { instanceId } = req.params
+    const {page = 2, limit = 10} = req.query
+    const options = {
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10)
+    }
+    if (!(instanceId && isValidObjectId(instanceId))) {
+        throw new ApiError(400, "Invalid Instance ID")
+    }
+    const instance = await Instance.findById(instanceId)
+    if (!instance) {
+        throw new ApiError(404, "Instance not found")
+    }
+    if (instance.owner.toString()!==req.user._id.toString()) {
+        if (instance.isPrivate === "private") {
+            if (!password || password.trim() === "") {
+                throw new ApiError(400, "Password is required");
+            }
+            const isPasswordCorrect = await instance.isPasswordCorrect(password);
+            if (!isPasswordCorrect) {
+                throw new ApiError(400, "Invalid password");
+            }
+        }
+    }
+    const fetchedComments = await Comment.aggregate([
+        {
+            $match:{
+                instance: new mongoose.Types.ObjectId(instanceId)
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "commentOwner",
+                foreignField: "_id",
+                as: "commentOwners",
+                pipeline: [
+                    {
+                        $project:{
+                            username:1,
+                            avatar:1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $sort: {
+                createdAt: -1
+            }
+        }
+    ])
+    if (!fetchedComments.length) {
+        throw new ApiError(400, "Couldn't fetch comments")
+    }
+    const paginatedComments = Comment.aggregatePaginate(myAggregate, options)
+    if (!paginatedComments) {
+        throw new ApiError(400, "Couldn't paginate comments")
+    }
+    return res
+    .status(200)
+    .json(new ApiResponse(200, paginatedComments, "Comments fetched successfully"))
+})
 
 const addComments = asyncHandler( async (req, res) => {
     const { content, password } = req.body
