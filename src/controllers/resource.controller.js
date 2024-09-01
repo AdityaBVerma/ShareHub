@@ -84,7 +84,104 @@ const publishResource = asyncHandler( async (req, res) => {
 
 })
 
-const getResourceById = asyncHandler( async (req, res) => {})
+const getResourceById = asyncHandler( async (req, res) => {
+    const { resourceId, instanceId, resourcetype } = req.params
+    const { password } = req.body
+    if (!(instanceId && isValidObjectId(instanceId))) {
+        throw new ApiError(400, "Invalid instanceId")
+    }
+    if (!(resourceId && isValidObjectId(resourceId))) {
+        throw new ApiError(400, "Invalid Resource Id")
+    }
+    const instance = await Instance.findById(instanceId)
+    if (!instance) {
+        throw new ApiError(404 , "Instance not found")
+    }
+    let resource
+    switch (resourcetype) {
+        case 'videos':
+            resource = await Video.findById(resourceId)
+            break;
+        case 'images':
+            resource = await Image.findById(resourceId)
+            break;
+        case 'docs':
+            resource = await Doc.findById(resourceId)
+            break;
+        default:
+            throw new ApiError(400, "invalid Resource type")
+    }
+    if (instance.owner.toString() !== req.user._id.toString() || resource.owner.toString() !== req.user._id.toString()) {
+        if (instance.isPrivate==="private") {
+            if (!password || password.trim()==="") {
+                throw new ApiError(400, "Password is required")
+            }
+            const isPasswordCorrect = await instance.isPasswordCorrect(password)
+            if (!isPasswordCorrect) {
+                throw new ApiError(400, "Incorrect Password")
+            }
+        }
+    }
+    const resourceLookup = {
+        $lookup:{
+            from:"users",
+            localField:"owner",
+            foreignField: "_id",
+            as: "owners",
+            pipeline:[
+                {
+                    $project: {
+                        username: 1,
+                        email: 1,
+                        fullname: 1,
+                        avatar: 1,
+                        coverImage: 1
+                    }
+                }
+            ]
+        }
+    }
+    let fetchedResource
+    switch (resourcetype) {
+        case 'videos': 
+                fetchedResource = await Video.aggregate([
+                    {
+                        $match:{
+                            _id: new mongoose.Types.ObjectId(resourceId)
+                        }
+                    },
+                    resourceLookup
+                ])
+            break;
+        case 'docs': 
+                fetchedResource = await Doc.aggregate([
+                    {
+                        $match:{
+                            _id: new mongoose.Types.ObjectId(resourceId)
+                        }
+                    },
+                    resourceLookup
+                ])
+            break;
+        case 'images': 
+                fetchedResource = await Image.aggregate([
+                    {
+                        $match:{
+                            _id: new mongoose.Types.ObjectId(resourceId)
+                        }
+                    },
+                    resourceLookup
+                ])
+            break;
+    }
+    if (!fetchedResource.length) {
+        throw new ApiError(400, "Could'nt fetch resource")
+    }
+    return res
+    .status(200)
+    .json(new ApiResponse(200, fetchedResource[0], "Resource feteched successfully"))
+
+})
 
 const updateResource = asyncHandler( async (req, res) => {})
 

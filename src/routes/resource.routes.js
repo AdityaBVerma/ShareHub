@@ -15,7 +15,7 @@ router.route("/:groupId").get(getAllResourcesOfGroup)
 
 router.route("/:groupId/:instanceId/:resourcetype").post(verifyJWT, uploadType, publishResource)
 
-router.route("/:insstanceId/:resourcetype/:resourceId")
+router.route("/:instanceId/:resourcetype/:resourceId")
     .get(getResourceById)
     .patch(updateResource)
     .delete(deleteResource)
