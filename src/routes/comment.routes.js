@@ -15,7 +15,7 @@ router.route("/:instanceId")
     .get(getInstanceComments)
     .post(addComments);
 
-router.route("/c/:commentId")
+router.route("/instanceId/:commentId")
     .delete(deleteComments)
     .patch(updateComments);
 
