@@ -138,7 +138,7 @@ const updateComments = asyncHandler( async (req, res) => {
             }
         }
     } else {
-        throw new ApiError(403, "Unauthorized to delete comment");
+        throw new ApiError(403, "Unauthorized to update comment");
     }
     const updatedComment = await Comment.findByIdAndUpdate(
         commentId,

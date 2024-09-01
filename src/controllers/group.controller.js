@@ -159,6 +159,9 @@ const updateGroup = asyncHandler( async (req, res) => {
     if (!(groupId && isValidObjectId(groupId))) {
         throw new ApiError(400, "Invalid Group Id")
     }
+    if (!name || name.trim()==="") {
+        throw new ApiError(400, "New Name is required")
+    }
     const instance = await Instance.findById(instanceId)
     if (!instance) {
         throw new ApiError(404 , "Instance not found")
@@ -175,9 +178,8 @@ const updateGroup = asyncHandler( async (req, res) => {
                 }
             }
         }
-    }
-    if (!name || name.trim()==="") {
-        throw new ApiError(400, "New Name is required")
+    } else {
+        throw new ApiError(403, "Unauthorized to update group");
     }
     const updatedGroup = await Group.findByIdAndUpdate(
         groupId,
