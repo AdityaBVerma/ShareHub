@@ -92,7 +92,7 @@ const loginUser = asyncHandler( async (req, res) => {
     const {username, email, password} = req.body
 
     const user = await User.findOne({
-        $or: [{username}, {email}]
+        $or: [{username:username}, {email}]
     })
     if (!user) {
         throw new ApiError(404, "user with this email or username not found")
@@ -225,7 +225,7 @@ const changeCurrentPassword = asyncHandler( async (req, res) => {
 const getCurrentUser = asyncHandler( async (req, res) => {
     return res
     .status(200)
-    .json(new ApiError(200, req.user, "User fetched successfully"))
+    .json(new ApiResponse(200, req.user, "User fetched successfully"))
 })
 
 const updateAccountDetails = asyncHandler( async (req, res) => {
