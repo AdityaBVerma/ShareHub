@@ -4,6 +4,7 @@ import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.model.js"
 import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js"
 import jwt from "jsonwebtoken"
+import fs from "fs"
 
 const generateAccessAndRefreshToken = async (userid) =>{
     try {
@@ -21,10 +22,20 @@ const generateAccessAndRefreshToken = async (userid) =>{
 
 const registerUser = asyncHandler( async (req, res) => {
     const {username, email, fullName, password} = req.body
-
+    let coverImageLocalPath
+    const avatarLocalPath = (req.files.avatar && req.files.avatar[0]) ? req.files.avatar[0]?.path : null;
+    if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
+        coverImageLocalPath = await req.files.coverImage[0].path
+    }
     if(
-        [username, email, fullName, password].some((field) => field?.trim()==="")
+        [username, email, fullName, password].some((field) => !field || field.trim() === "")
     ){
+        if (fs.existsSync(avatarLocalPath)) { 
+            fs.unlinkSync(avatarLocalPath); 
+        }
+        if (fs.existsSync(coverImageLocalPath)) { 
+            fs.unlinkSync(coverImageLocalPath); 
+        }
         throw new ApiError(400, "All fields are required")
     }
 
@@ -33,10 +44,16 @@ const registerUser = asyncHandler( async (req, res) => {
     })
 
     if(existedUser){
+        if (fs.existsSync(avatarLocalPath)) { 
+            fs.unlinkSync(avatarLocalPath); 
+        }
+        if (fs.existsSync(coverImageLocalPath)) { 
+            fs.unlinkSync(coverImageLocalPath); 
+        }
         throw new ApiError(400, "The user with this email and username aldready exists")
     }
 
-    const avatarLocalPath = req.files?.avatar[0].path
+
     if(!avatarLocalPath){
         throw new ApiError(400, "Avatar is required")
     }
@@ -46,8 +63,7 @@ const registerUser = asyncHandler( async (req, res) => {
     }
 
     let coverImage
-    if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
-        const coverImageLocalPath = await req.files.coverImage[0].path
+    if(coverImageLocalPath){
         coverImage = await uploadOnCloudinary(coverImageLocalPath)
         if(!coverImage){
             throw new ApiError(400, "error uploading coverImage on cloudinary")
