@@ -253,13 +253,16 @@ const updateAccountDetails = asyncHandler( async (req, res) => {
 const updateUserAvatar = asyncHandler( async (req, res) => {
     const avatarLocalPath = req.file?.path
     if (!avatarLocalPath) {
+        if(fs.existsSync(avatarLocalPath)){
+            fs.unlinkSync(avatarLocalPath)
+        }
         throw new ApiError(404, "avatar image is required")
     }
 
     const user = await User.findById(req.user._id)
     const previousAvatar = user.avatar
     if (previousAvatar) {
-        await deleteFromCloudinary(previousAvatar.public_id)
+        await deleteFromCloudinary(previousAvatar.public_id,"image")
     }
 
     const newAvatar = await uploadOnCloudinary(avatarLocalPath)
@@ -291,12 +294,15 @@ const updateUserAvatar = asyncHandler( async (req, res) => {
 const updateUserCoverImage = asyncHandler( async (req, res) => {
     const coverImageLocalPath = req.file?.path
     if (!coverImageLocalPath) {
+        if (fs.existsSync(coverImageLocalPath)) {
+            fs.unlinkSync(coverImageLocalPath)
+        }
         throw new ApiError(404, "CoverImage not found")
     }
     const user = await User.findById(req.user._id)
     const previousCoverImage = user.coverImage
     if (previousCoverImage.public_id) {
-        await deleteFromCloudinary(previousCoverImage.public_id)
+        await deleteFromCloudinary(previousCoverImage.public_id, "image")
     }
     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
     if (!coverImage) {
