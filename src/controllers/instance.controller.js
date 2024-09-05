@@ -8,6 +8,7 @@ import { Group } from "../models/group.model.js";
 import { Image } from "../models/image.model.js";
 import { Doc } from "../models/doc.model.js";
 import { Video } from "../models/video.model.js";
+import fs from "fs"
 
 
 const getUserInstances = asyncHandler( async (req, res) => {
@@ -52,6 +53,11 @@ const getUserInstances = asyncHandler( async (req, res) => {
             $sort:{
                 createdAt: 1
             }
+        },
+        {
+            $project:{
+                password:0
+            }
         }
     ])
     if (!instances.length) {
@@ -64,29 +70,49 @@ const getUserInstances = asyncHandler( async (req, res) => {
 
 const createNewInstance = asyncHandler( async (req, res) => {
     const {title, password, description, isPrivate} = req.body
-    const allowedPrivacy = ["public", "private"]
+    const allowedPrivacy = ["public", "private", undefined]
+    const thumbnailLocalPath = req.file?.path
+
     if (!allowedPrivacy.includes(isPrivate)) {
+        if (fs.existsSync(thumbnailLocalPath)) {
+            fs.unlinkSync(thumbnailLocalPath)
+        }
         throw new ApiError(400, "Inctance must be either public or private")
     }
-    if(!(isPrivate == "private" && password)){
+
+    if(isPrivate == "private" && !password){
+        if (fs.existsSync(thumbnailLocalPath)) {
+            fs.unlinkSync(thumbnailLocalPath)
+        }
         throw new ApiError(400, "Password is required")
     }
-    const thubmnailLocalPath = req.file?.path
+
     if (title.trim()==="") {
+        if (fs.existsSync(thumbnailLocalPath)) {
+            fs.unlinkSync(thumbnailLocalPath)
+        }
         throw new ApiError(400, "Instance title needed")
     }
+
     const existedInstance = await Instance.findOne({title})
     if(existedInstance){
+        if (fs.existsSync(thumbnailLocalPath)) {
+            fs.unlinkSync(thumbnailLocalPath)
+        }
         throw new ApiError(400, "The instance with this name aldready exists")
     }
+
     let thumbnail
-    if (thubmnailLocalPath) {
-        thumbnail = await uploadOnCloudinary(thumbnail)
+    if (thumbnailLocalPath) {
+        thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
     }
+
     const instance = await Instance.create({
         title,
-        password: isPrivate === "private" ? password : undefined, 
+        owner:req.user._id,
+        password: isPrivate == "private" ? password : undefined, 
         description,
+        isPrivate: isPrivate? isPrivate : "public",
         thumbnail: thumbnail ? { url: thumbnail.url, public_id: thumbnail.public_id } : undefined,
     });
 
@@ -117,6 +143,10 @@ const changeInstancePassword = asyncHandler( async (req, res) => {
         throw new ApiError(400, "You cannot perform this task")
     }
 
+    if (instance.isPrivate==="public") {
+        throw new ApiError(400, "cannot change password of a public instance")
+    }
+
     const isPasswordCorrect = await instance.isPasswordCorrect(oldPassword)
     if (!isPasswordCorrect) {
         throw new ApiError(400, "invalid old password")
@@ -141,10 +171,10 @@ const getInstanceById = asyncHandler( async (req, res) => {
     if (!instance) {
         throw new ApiError(400, "Instance not found")
     }
-    if (instance.isPrivate==="private" && password.trim()==="") {
+    if (instance.isPrivate==="private" && !password) {
         throw new ApiError(400, "Password is required")
     }
-    if (instance.isPrivate==="private" && password.trim()!=="") {
+    if (instance.isPrivate==="private" && password) {
         const isPasswordCorrect = await instance.isPasswordCorrect(password)
         if(!isPasswordCorrect){
             throw new ApiError(400, "Invalid password")
@@ -247,20 +277,40 @@ const getInstanceById = asyncHandler( async (req, res) => {
 const updateInstance = asyncHandler( async (req, res) => {
     const {title}  = req.body
     const {instanceId} = req.params
+    const thumbnailLocalPath = req.file?.path
+    if (!title) {
+        throw new ApiError(400, "title is required")
+    }
     if (!(instanceId && isValidObjectId(instanceId))) {
+        if (fs.existsSync(thumbnailLocalPath)) {
+            fs.unlinkSync(thumbnailLocalPath)
+        }
         throw new ApiError(400, "invalid instance id")
     }
     const instance = await Instance.findById(instanceId)
     if (!instance) {
+        if (fs.existsSync(thumbnailLocalPath)) {
+            fs.unlinkSync(thumbnailLocalPath)
+        }
         throw new ApiError(400, "instance not found")
     }
     if(instance.owner.toString()!==req.user._id.toString()){
-        throw new ApiError(400, "You cannot perform this action")
+        if (fs.existsSync(thumbnailLocalPath)) {
+            fs.unlinkSync(thumbnailLocalPath)
+        }
+        throw new ApiError(403, "You cannot perform this action")
     }
-    const thumbnailLocalPath = req.file?.path
+    
     let thumbnail
     if (thumbnailLocalPath) {
-        await deleteFromCloudinary(instance.thumbnail.public_id)
+        try {
+            await deleteFromCloudinary(instance.thumbnail.public_id, "image")
+        } catch (error) {
+            if (fs.existsSync(thumbnailLocalPath)) {
+                fs.unlinkSync(thumbnailLocalPath)
+            }
+            throw new ApiError(400, "deleting thumbnail in instance failed")
+        }
         thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
     }
     const updatedInstance = await Instance.findByIdAndUpdate(
@@ -391,12 +441,13 @@ const toggleVisibilityStatus = asyncHandler(async (req, res) => {
     if(instance.isPrivate==="public" && !password){
         throw new ApiError(400, "Password is required")
     }
+    instance.password = (instance.isPrivate === "public")? password : undefined
+    instance.save({validateBeforeSave:false})
     const updatedInstance = await Instance.findByIdAndUpdate(
         instanceId,
         {
             $set:{
                 isPrivate: (instance.isPrivate === "public")? "private" : "public",
-                password: (instance.isPrivate === "public")? password : ""
             }
         },
         {

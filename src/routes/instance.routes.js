@@ -15,15 +15,15 @@ const router = Router()
 
 router.use(verifyJWT)
 
-router.route("/")
-    .post(upload.single("thubmnail"), createNewInstance)
+router.route("/create-instance")
+    .post(upload.single("thumbnail"), createNewInstance)
 
 router.route("/user/:userId").get(getUserInstances);
 
 router.route("/:instanceId")
     .get(getInstanceById)
     .post(changeInstancePassword)
-    .patch(upload.single("thubmnail"), updateInstance)
+    .patch(upload.single("thumbnail"), updateInstance)
     .delete(deleteInstance)
 
 router.route("/toggle/visibility/:instanceId").patch(toggleVisibilityStatus);
