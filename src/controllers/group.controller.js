@@ -24,7 +24,7 @@ const createNewGroup = asyncHandler( async (req, res) => {
             }
         }
     }
-    if (name.trim()==="") {
+    if (!name || name.trim()==="") {
         throw new ApiError(400, "name is required")
     }
     const existedGroup = await Group.findOne({name})
@@ -152,7 +152,7 @@ const getGroupById = asyncHandler( async (req, res) => {
 
 const updateGroup = asyncHandler( async (req, res) => {
     const { instanceId, groupId } = req.params
-    const { name, } = req.body
+    const { name } = req.body
     if (!(instanceId && isValidObjectId(instanceId))) {
         throw new ApiError(400, "Invalid instanceId")
     }
@@ -293,12 +293,13 @@ const moveGroup = asyncHandler( async (req, res) => {
     if (!(groupId && isValidObjectId(groupId))) {
         throw new ApiError(400, "invalid group ID")
     }
-    if (!(fromInstanceId && isValidObjectId(fromInstanceId))) {
-        throw new ApiError(400, "invalid fromInstance ID")
-    }
     if (!(toInstanceId && isValidObjectId(toInstanceId))) {
         throw new ApiError(400, "invalid toInstance ID")
     }
+    if (!(fromInstanceId && isValidObjectId(fromInstanceId))) {
+        throw new ApiError(400, "invalid fromInstance ID")
+    }
+    
     if (fromInstanceId.toString() === toInstanceId.toString()) {
         throw new ApiError(400, "The group is already in the target instance")
     }

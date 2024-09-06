@@ -21,10 +21,10 @@ router.route('/instances/:instanceId/groups/:groupId')
     .patch(updateGroup)
     .delete(deleteGroup);
 
-router.route('/groups/:groupId/move')
+router.route('/:groupId/move')
     .post(moveGroup)
 
-router.route('/group/:groupId')
+router.route('/:groupId')
     .get(getGroupCollaborators)
 
 export default router
