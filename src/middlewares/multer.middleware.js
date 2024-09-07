@@ -3,7 +3,7 @@ import path from "path"
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, "./public/temp")// cb is for callback and null is for error mostly works fine as never returns error
+        cb(null, "./public/temp")
     },
     filename: function (req, file, cb) {
         cb(null, `${Date.now()}-${file.originalname}`)

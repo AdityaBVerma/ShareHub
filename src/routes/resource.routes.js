@@ -13,7 +13,8 @@ const router = Router();
 
 router.use(verifyJWT)
 
-router.route("/:groupId/:instanceId/:resourcetype").post(uploadType, publishResource)
+router.route("/:instanceId/:groupId/:resourcetype")
+    .post(uploadType, publishResource)
 
 router.route("/:instanceId/:resourcetype/:resourceId")
     .get(getResourceById)

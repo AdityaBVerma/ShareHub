@@ -15,8 +15,8 @@ connectDB()
     app.get("/test", (req, res) => {
         res.send("Hello dev")
     })
-    app.listen(process.env.PORT, (req, res) => {
-        console.log(`※※ App is listening on port ※※ ${process.env.PORT} `)
+    app.listen(process.env.PORT || 3000, (req, res) => {
+        console.log(`※※ App is listening on port ※※ ${process.env.PORT || 3000} `)
     })
 })
 .catch((error) => {

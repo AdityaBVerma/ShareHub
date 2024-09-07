@@ -3,9 +3,9 @@ import asyncHandler from "../utils/asyncHandler.js"
 import { upload } from "./multer.middleware.js"
 
 export const uploadType = asyncHandler( (req, res, next) => {
-    const {resourceType} = req.params
+    const {resourcetype} = req.params
     let fieldname
-    switch (resourceType) {
+    switch (resourcetype) {
         case 'videos':
             fieldname = 'videofile'
             break;
@@ -21,6 +21,7 @@ export const uploadType = asyncHandler( (req, res, next) => {
     }
     upload.single(fieldname)(req, res, (err) => {
         if (err) {
+            console.log("Multer error:", err); 
             return next(new ApiError(400, err?.message || "Error in upload multer"));
         }
         if (!req.file) {
