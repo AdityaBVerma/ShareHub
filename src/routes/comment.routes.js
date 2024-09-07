@@ -11,13 +11,13 @@ const router = Router()
 
 router.use(verifyJWT)
 
-router.route('/videos/:instanceId/comments')
+router.route('/:instanceId')
     .get(getInstanceComments)
 
 router.route("/:instanceId")
     .post(addComments);
 
-router.route("/instanceId/:commentId")
+router.route("/:instanceId/:commentId")
     .delete(deleteComments)
     .patch(updateComments);
 

@@ -5,7 +5,7 @@ import { Instance } from "../models/instance.model.js"
 import { Comment } from "../models/comment.model.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 
-const getInstanceComments = asyncHandler( async (req, res) => {
+const getInstanceComments = asyncHandler(async (req, res) => {
     const { instanceId } = req.params
     const {password } = req.body
     const {page = 2, limit = 10} = req.query
@@ -31,9 +31,10 @@ const getInstanceComments = asyncHandler( async (req, res) => {
             }
         }
     }
-    const fetchedComments = await Comment.aggregate([
+
+    const aggregationPipeline = [
         {
-            $match:{
+            $match: {
                 instance: new mongoose.Types.ObjectId(instanceId)
             }
         },
@@ -58,17 +59,14 @@ const getInstanceComments = asyncHandler( async (req, res) => {
                 createdAt: -1
             }
         }
-    ])
-    if (!fetchedComments.length) {
-        throw new ApiError(400, "Couldn't fetch comments")
-    }
-    const paginatedComments = Comment.aggregatePaginate(fetchedComments, options)
+    ]
+
+    const paginatedComments = await Comment.aggregatePaginate(Comment.aggregate(aggregationPipeline), options)
     if (!paginatedComments) {
         throw new ApiError(400, "Couldn't paginate comments")
     }
-    return res
-    .status(200)
-    .json(new ApiResponse(200, paginatedComments, "Comments fetched successfully"))
+
+    return res.status(200).json(new ApiResponse(200, paginatedComments, "Comments fetched successfully"))
 })
 
 const addComments = asyncHandler( async (req, res) => {
@@ -109,7 +107,7 @@ const addComments = asyncHandler( async (req, res) => {
 })
 
 const updateComments = asyncHandler( async (req, res) => {
-    const { content, password } = req.body
+    const { content } = req.body
     const { instanceId, commentId } = req.params
     if (!(instanceId && isValidObjectId(instanceId))) {
         throw new ApiError(400, "Invalid Instance Id")
@@ -152,7 +150,6 @@ const updateComments = asyncHandler( async (req, res) => {
 })
 
 const deleteComments = asyncHandler( async (req, res) => {
-    const { password } = req.body
     const { instanceId, commentId } = req.params
     if (!(instanceId && isValidObjectId(instanceId))) {
         throw new ApiError(400, "Invalid Instance Id")
