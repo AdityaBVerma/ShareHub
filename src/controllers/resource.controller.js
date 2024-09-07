@@ -1,3 +1,4 @@
+import mongoose, { isValidObjectId } from "mongoose";
 import asyncHandler from "../utils/asyncHandler.js";
 import { Instance } from "../models/instance.model.js";
 import { Group } from "../models/group.model.js";
@@ -7,40 +8,64 @@ import { Video } from "../models/video.model.js";
 import { Doc } from "../models/doc.model.js";
 import { Image } from "../models/image.model.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
+import fs from "fs"
 
 const publishResource = asyncHandler( async (req, res) => {
     const { groupId, instanceId, resourcetype } = req.params
     const { password, title } = req.body
+    const localpath = req.file?.path
+
     if (!(instanceId && isValidObjectId(instanceId))) {
+        if (fs.existsSync(localpath)) {
+            fs.unlinkSync(localpath)
+        }
         throw new ApiError(400, "Invalid instanceId")
     }
     if (!(groupId && isValidObjectId(groupId))) {
+        if (fs.existsSync(localpath)) {
+            fs.unlinkSync(localpath)
+        }
         throw new ApiError(400, "Invalid Group Id")
     }
     const instance = await Instance.findById(instanceId)
     if (!instance) {
+        if (fs.existsSync(localpath)) {
+            fs.unlinkSync(localpath)
+        }
         throw new ApiError(404 , "Instance not found")
     }
     if (instance.owner.toString()!==req.user._id.toString()) {
         if (instance.isPrivate==="private") {
             if (!password || password.trim()==="") {
+                if (fs.existsSync(localpath)) {
+                    fs.unlinkSync(localpath)
+                }
                 throw new ApiError(400, "Password is required")
             }
             if (password) {
                 const isPasswordCorrect = await instance.isPasswordCorrect(password)
                 if (!isPasswordCorrect) {
+                    if (fs.existsSync(localpath)) {
+                        fs.unlinkSync(localpath)
+                    }
                     throw new ApiError(400, "Incorrect Password")
                 }
             }
         }
     }
-    if (resourcetype.trim()==="") {
+    if (!resourcetype || resourcetype.trim()==="") {
+        if (fs.existsSync(localpath)) {
+            fs.unlinkSync(localpath)
+        }
         throw new ApiError(400, "resourcetype is required")
     }
     if (!["videos", "images", "docs"].find((resource) => (resource === resourcetype))) {
+        if (fs.existsSync(localpath)) {
+            fs.unlinkSync(localpath)
+        }
         throw new ApiError(400, "Invalid resourceType");
     }
-    const localpath = req.file?.path
+
     if (!localpath) {
         throw new ApiError(400, `${resourcetype} file is required`)
     }
@@ -109,7 +134,7 @@ const getResourceById = asyncHandler( async (req, res) => {
         default:
             throw new ApiError(400, "invalid Resource type")
     }
-    if (instance.owner.toString() !== req.user._id.toString() || resource.owner.toString() !== req.user._id.toString()) {
+    if (instance.owner.toString() !== req.user._id.toString() && resource.owner.toString() !== req.user._id.toString()) {
         if (instance.isPrivate==="private") {
             if (!password || password.trim()==="") {
                 throw new ApiError(400, "Password is required")
