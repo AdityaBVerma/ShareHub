@@ -31,7 +31,7 @@ The application has been thoroughly tested to ensure core functionalities are wo
 ## Documentation
 
 For detailed Postman testing documentation, please refer to the 
-[![Postman Testing Documentation](https://via.placeholder.com/800x400)](https://tse1.mm.bing.net/th?id=OIP.7xmteOV3RYQeOSSmn-f8TgHaCv&pid=Api&P=0&h=220)
+[Postman Testing Documentation](https://documenter.getpostman.com/view/32315664/2sAXjQ2q8C)
 
 
 Feel free to use this description and the provided documentation link for further information on the ShareHub project.
