@@ -9,6 +9,7 @@ import { Doc } from "../models/doc.model.js";
 import { Image } from "../models/image.model.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
 import fs from "fs"
+import { group } from "console";
 
 const publishResource = asyncHandler( async (req, res) => {
     const { groupId, instanceId, resourcetype } = req.params
@@ -371,6 +372,7 @@ const deleteResource = asyncHandler( async (req, res) => {
 const moveResource = asyncHandler( async (req, res) => {
     const { resourceId, instanceId, resourcetype } = req.params
     const { fromGroupId, toGroupId } = req.body
+
     if (!(instanceId && isValidObjectId(instanceId))) {
         throw new ApiError(400, "Invalid instanceId")
     }
@@ -383,13 +385,30 @@ const moveResource = asyncHandler( async (req, res) => {
     if (!(toGroupId && isValidObjectId(toGroupId))) {
         throw new ApiError(400, "Invalid toGroupId Id")
     }
+
     if (fromGroupId.toString() === toGroupId.toString()) {
         throw new ApiError(400, "No change is required")
     }
-    const instance = await Instance.findById(instanceId)
-    if (!instance) {
-        throw new ApiError(404 , "Instance not found")
+
+    // const fromGroup = await Group.findById(fromGroupId)
+    // const toGroup = await Group.findById(toGroupId)
+    const [fromGroup, toGroup] = await Promise.all([
+        Group.findById(fromGroupId),
+        Group.findById(toGroupId)
+    ])
+
+    if (!fromGroup) throw new ApiError(404, "From group not found")
+    if (!toGroup) throw new ApiError(404, "To group not found")
+    if (fromGroup.ownedInstance.toString()!==toGroup.ownedInstance.toString()) {
+        throw new ApiError(400, "Resource cannot be moved out of instance")
     }
+
+    const instance = await Instance.findById(instanceId)
+    if (!instance)throw new ApiError(404 , "Instance not found")
+    if (instance.owner.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "Unauthorized request to move resource")
+    }
+
     let resource;
     switch (resourcetype) {
         case 'videos':
@@ -407,53 +426,19 @@ const moveResource = asyncHandler( async (req, res) => {
     if (!resource) {
         throw new ApiError(404, "Resource not found");
     }
-    if (instance.owner.toString() !== req.user._id.toString()) {
-        throw new ApiError(403, "Unauthorized request to move resource")
-    }
-    let movedResource
-    switch (resourcetype) {
-        case 'videos':
-            movedResource = await Video.findByIdAndUpdate(
-                resourceId,
-                {
-                    $set:{
-                        group: toGroupId
-                    }
-                },
-                {
-                    new: true
-                }
-            )
-            break;
-        case 'images':
-            movedResource = await Image.findByIdAndUpdate(
-                resourceId,
-                {
-                    $set:{
-                        group: toGroupId
-                    }
-                },
-                {
-                    new: true
-                }
-            )
-            break;
-        case 'docs':
-            movedResource = await Doc.findByIdAndUpdate(
-                resourceId,
-                {
-                    $set:{
-                        group: toGroupId
-                    }
-                },
-                {
-                    new: true
-                }
-            )
-            break;
-        default:
-            throw new ApiError(400, "invalid Resource type")
-    }
+
+    const movedResource = await resource.constructor.findByIdAndUpdate(
+        resourceId,
+        {
+            $set:{
+                group: toGroupId
+            }
+        },
+        {
+            new: true
+        }
+    )
+
     if (!movedResource) {
         throw new ApiError(404, "Couldn't move resource")
     }
@@ -461,7 +446,7 @@ const moveResource = asyncHandler( async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, movedResource, "Resource moved successfully"))
 
-})// if fromGroup and to group instancee owner are the same then only add
+})
 
 export {
     publishResource,
