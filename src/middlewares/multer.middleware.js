@@ -11,15 +11,39 @@ const storage = multer.diskStorage({
 })
 
 const fileFilter = (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png|gif|mp4|mov|mkv|pdf|doc|docx/;
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase())
-    const mimetype = filetypes.test(file.mimetype)
+    const allowedExtensions = [
+        '.jpeg', '.jpg', '.png', '.gif', '.bmp', '.tiff', '.svg', 
+        '.mp4', '.mov', '.mkv', '.avi', '.webm', '.3gp',
+        '.pdf', '.doc', '.docx', '.epub', '.tar', '.zip', '.rar',
+        '.mp3', '.wav', '.ogg', '.aac',
+        '.txt', '.html', '.json', '.xml',
+        '.gz', '.bz2',
+        '.7z', '.iso'
+    ]
 
-    if(extname && mimetype){
-        return cb(null, true);
+    const allowedMimeTypes = [
+        'image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/tiff', 'image/svg+xml',
+        'video/mp4', 'video/quicktime', 'video/x-matroska', 'video/avi', 'video/webm', 'video/3gpp',
+        'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/epub+zip', 'application/x-tar', 'application/zip', 'application/x-rar-compressed',
+        'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/aac',
+        'text/plain', 'text/html', 'application/json', 'application/xml',
+        'application/gzip', 'application/x-bzip2',
+        'application/x-7z-compressed', 'application/x-iso9660-image'
+    ]
+
+    const extname = path.extname(file.originalname).toLowerCase()
+    const mimetype = file.mimetype;
+
+    const isExtensionValid = allowedExtensions.includes(extname)
+    const isMimetypeValid = allowedMimeTypes.includes(mimetype)
+
+    if (isExtensionValid && isMimetypeValid) {
+        return cb(null, true)
     } else {
-        cb(new Error('Unsupported file type'), false);
+        return cb(new Error('Unsupported file type'), false)
     }
+
 }
 
 export const upload = multer({
