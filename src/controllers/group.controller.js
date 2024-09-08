@@ -4,6 +4,9 @@ import { ApiError } from "../utils/ApiError.js";
 import { Instance } from "../models/instance.model.js"
 import { Group } from "../models/group.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { Image } from "../models/image.model.js";
+import { Doc } from "../models/doc.model.js";
+import { Video } from "../models/video.model.js";
 import { deleteResourcesFromCloudinary } from "../utils/cloudinary.js";
 
 const createNewGroup = asyncHandler( async (req, res) => {
@@ -432,9 +435,9 @@ const getGroupCollaborators = asyncHandler( async (req, res) => {
                         input:{
                             //concat all arrays into one array containing all owners
                             $concatArrays:[
-                                    { $map: {input: "$docs", as:"doc", in:"$$doc.owner"}},
-                                    { $map: {input: "$videos", as:"video", in:"$$video.owner"}},
-                                    { $map: {input: "$images", as:"image", in:"$$image.owner"}},
+                                    { $map: {input: "$docs", as:"doc", in:{ $cond: { if: { $isArray: "$$doc.owners" }, then: "$$doc.owners", else: [ "$$doc.owners" ] } }}},
+                                    { $map: {input: "$videos", as:"video", in:{ $cond: { if: { $isArray: "$$video.owners" }, then: "$$video.owners", else: [ "$$video.owners" ] } }}},
+                                    { $map: {input: "$images", as:"image", in:{ $cond: { if: { $isArray: "$$image.owners" }, then: "$$image.owners", else: [ "$$image.owners" ] } }}},
                             ]
                         },
                         initialValue: [],

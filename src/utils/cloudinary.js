@@ -40,11 +40,42 @@ const deleteFromCloudinary = async(public_id, resource_type) => {
 }
 
 const deleteResourcesFromCloudinary = async (resource, type) => {
+    let resource_types
+    switch (type) {
+        case 'images':
+            resource_types = 'image'
+            break;
+        case 'videos':
+            resource_types = 'video'
+            break;
+        case 'docs':
+            resource_types = 'raw'
+            break;
+        default:
+            resource_types = 'auto'
+            break;
+    }
+    let count = 0;
     if( resource.length > 0){
-        for(const resources in resource){
-            await deleteFromCloudinary(resources.public_id)
+        for(const resources of resource){
+            let resourcePublicId;
+            switch (type) {
+                case 'images':
+                    resourcePublicId = resources.imagefile?.public_id
+                    break;
+                case 'videos':
+                    resourcePublicId = resources.videofile?.public_id
+                    break;
+                case 'docs':
+                    resourcePublicId = resources.docfile?.public_id
+                    break;
+            }
+            if (resourcePublicId) {
+                await deleteFromCloudinary(resourcePublicId, resource_types)
+                count++
+            }
         }
-        console.log(`All ${type} resources deleted from Cloudinary.`);
+        console.log(`All ${count} ${type} resources deleted from Cloudinary.`);
     } else {
         console.log(`No ${type} resources to delete.`);
     }

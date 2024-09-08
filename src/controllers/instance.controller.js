@@ -8,6 +8,7 @@ import { Group } from "../models/group.model.js";
 import { Image } from "../models/image.model.js";
 import { Doc } from "../models/doc.model.js";
 import { Video } from "../models/video.model.js";
+import { Comment } from "../models/comment.model.js"
 import fs from "fs"
 
 
@@ -342,6 +343,9 @@ const deleteInstance = asyncHandler( async (req, res) => {
         throw new ApiError(400, "invalid instance id")
     }
     const instance = await Instance.findById(instanceId)
+    if (!instance) {
+        throw new ApiError(404, "Instance not found")
+    }
     if (instance.owner.toString()!==req.user._id.toString()) {
         throw new ApiError(400, "Unauthorized request")
     }
@@ -349,7 +353,7 @@ const deleteInstance = asyncHandler( async (req, res) => {
     const fetchedInstance = await Instance.aggregate([
         {
             $match: {
-                _id: mongoose.Types.ObjectId(instanceId)
+                _id: new mongoose.Types.ObjectId(instanceId)
             }
         },
         {
@@ -398,17 +402,18 @@ const deleteInstance = asyncHandler( async (req, res) => {
     if (!fetchedInstance.length) {
         throw new ApiError(400, "groups of the instance not found")
     }
+
     const instanceData = fetchedInstance[0]
     const docCollection = instanceData.groups.flatMap((groups)=>(groups.docs))
     const imageCollection = instanceData.groups.flatMap((groups)=>(groups.images))
     const videoCollection = instanceData.groups.flatMap((groups)=>(groups.videos))
-    await deleteResourcesFromCloudinary(docCollection, 'document');
-    await deleteResourcesFromCloudinary(imageCollection, 'image');
-    await deleteResourcesFromCloudinary(videoCollection, 'video');
+    await deleteResourcesFromCloudinary(docCollection, 'docs');
+    await deleteResourcesFromCloudinary(imageCollection, 'images');
+    await deleteResourcesFromCloudinary(videoCollection, 'videos');
     
     const deletedGroups = await Group.deleteMany({ ownedInstance: instanceId })
     const deletedComments = await Comment.deleteMany({instance: instanceId})
-    const groupId = fetchedInstance.groups.map((groups)=>(groups._id))
+    const groupId = fetchedInstance[0]?.groups.map(group => group._id)
     const deletedImages = await Image.deleteMany({
         group: {$in : groupId}
     })
