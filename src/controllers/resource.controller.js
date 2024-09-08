@@ -239,7 +239,7 @@ const updateResource = asyncHandler( async (req, res) => {
     if (!resource) {
         throw new ApiError(404, "Resource not found");
     }
-    if (instance.owner.toString() !== req.user._id.toString() || resource.owner.toString() !== req.user._id.toString()) {
+    if (instance.owner.toString() !== req.user._id.toString() && resource.owner.toString() !== req.user._id.toString()) {
         throw new ApiError(403, "Unauthorized request to update resource")
     }
 
@@ -311,15 +311,23 @@ const deleteResource = asyncHandler( async (req, res) => {
     }
 
     let resource;
+    let cloudinaryType;
+    let resourcePublicId;
     switch (resourcetype) {
         case 'videos':
             resource = await Video.findById(resourceId);
+            cloudinaryType = "video"
+            resourcePublicId = resource.videofile.public_id
             break;
         case 'images':
             resource = await Image.findById(resourceId);
+            cloudinaryType = "image"
+            resourcePublicId = resource.imagefile.public_id
             break;
         case 'docs':
             resource = await Doc.findById(resourceId);
+            cloudinaryType = "raw"
+            resourcePublicId = resource.docfile.public_id
             break;
         default:
             throw new ApiError(400, "Invalid Resource type");
@@ -328,11 +336,11 @@ const deleteResource = asyncHandler( async (req, res) => {
         throw new ApiError(404, "Resource not found");
     }
 
-    if (instance.owner.toString() !== req.user._id.toString() || resource.owner.toString() !== req.user._id.toString()) {
+    if (instance.owner.toString() !== req.user._id.toString() && resource.owner.toString() !== req.user._id.toString()) {
         throw new ApiError(403, "Unauthorized request to delete resource")
     }
 
-    const deletedResourceFromCloudinary = await deleteFromCloudinary(resource.public_id)
+    const deletedResourceFromCloudinary = await deleteFromCloudinary(resourcePublicId, cloudinaryType)
     if (!deletedResourceFromCloudinary) {
         throw new ApiError(400, "Couldn't delete resource from cloudinary")
     }
